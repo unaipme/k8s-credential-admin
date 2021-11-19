@@ -2,7 +2,7 @@ import React, { FunctionComponent, useState } from "react";
 import { NextPage, NextPageContext } from "next";
 import { firstValueFrom } from "rxjs";
 import kubernetes, { Role, RoleRule, RuleVerb } from "../../../../services/kubernetes";
-import { Box, Button, Checkbox, Chip, Collapse, Divider, IconButton, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
+import { Box, Button, Checkbox, Chip, Collapse, Divider, IconButton, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, Typography } from "@mui/material";
 import { Add, KeyboardArrowUp, KeyboardArrowDown } from "@mui/icons-material";
 
 type CreateRoleBindingProps = {
@@ -83,7 +83,11 @@ const ExistingRoleRow: FunctionComponent<ExistingRoleRowProps> = ({ role, onRole
                                             </TableCell>
                                             <TableCell>
                                                 <Stack direction="row" spacing={1}>
-                                                    {verbs.map(verb => (<Chip key={verb} label={verb} />))}
+                                                    {verbs.map(verb => (
+                                                        <Tooltip key={verb} title={kubernetes.info.rbac.verbs[verb]}>
+                                                            <Chip label={verb} style={{ cursor: "help" }} />
+                                                        </Tooltip>
+                                                    ))}
                                                 </Stack>
                                             </TableCell>
                                         </TableRow>

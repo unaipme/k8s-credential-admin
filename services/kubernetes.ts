@@ -79,6 +79,21 @@ const kubernetes = {
     },
     getNamespaceRoles(namespace: string): Observable<Role []> {
         return f(`apis/rbac.authorization.k8s.io/v1/namespaces/${namespace}/roles`);
+    },
+    info: {
+        rbac: {
+            verbs: {
+                create: "Permission to create a new instance of the selected resource",
+                get: "Permission to get information of one specific instance of a resource",
+                list: "Permission to retrieve a list of all instances of a specific resource",
+                watch: "Permission to watch live changes on instances of a specific resource",
+                update: "Permission to create a replacement of an already existing instance of a specific resource",
+                patch: "Permission to alter the configuration of an already existing instance of a specific resource",
+                delete: "Permission to delete instances of a specific resource",
+                deletecollection: "Permission to delete collections of instances of a specific resource"
+            }
+
+        }
     }
 };
 
