@@ -31,13 +31,26 @@ type RoleBinding = {
     } [];
 }
 
+type RuleVerb = "list" | "get" | "watch" | "create" | "delete";
+
+type RoleRule = {
+    apiGroups: string [];
+    resources: string [];
+    verbs: RuleVerb [];
+};
+
+type Role = {
+    metadata: any;
+    rules: RoleRule [];
+}
+
 const agent = new https.Agent({
     rejectUnauthorized: false
 });
 
 const f = <T,>(url: string, options?: RequestInit): Observable<T> => {
     return from(new Promise<T>((resolve, reject) => {
-        fetch(url, {
+        fetch(`${api}/${url}`, {
             ...options,
             agent,
             headers: {
@@ -52,17 +65,20 @@ const f = <T,>(url: string, options?: RequestInit): Observable<T> => {
 
 const kubernetes = {
     getAllServiceAccounts(): Observable<ServiceAccount []> {
-        return f(`${api}/api/v1/serviceaccounts`);
+        return f("api/v1/serviceaccounts");
     },
     getNamespacedServiceAccounts(namespace: string): Observable<ServiceAccount []> {
-        return f(`${api}/api/v1/namespaces/${namespace}/serviceaccounts`);
+        return f(`api/v1/namespaces/${namespace}/serviceaccounts`);
     },
     getServiceAccountRoleBindings(serviceAccount: string, namespace: string): Observable<RoleBinding []> {
-        return f<RoleBinding []>(`${api}/apis/rbac.authorization.k8s.io/v1/namespaces/${namespace}/rolebindings`).pipe(
+        return f<RoleBinding []>(`apis/rbac.authorization.k8s.io/v1/namespaces/${namespace}/rolebindings`).pipe(
             map(items => items.filter(rb =>
                 rb.subjects.some(sub => sub.kind === "ServiceAccount" && sub.name === serviceAccount)
             ))
         );
+    },
+    getNamespaceRoles(namespace: string): Observable<Role []> {
+        return f(`apis/rbac.authorization.k8s.io/v1/namespaces/${namespace}/roles`);
     }
 };
 
@@ -70,5 +86,8 @@ export default kubernetes;
 
 export type {
     ServiceAccount,
-    RoleBinding
+    RoleBinding,
+    RoleRule,
+    RuleVerb,
+    Role
 };
