@@ -1,4 +1,4 @@
-import { Button, List, ListItem, ListItemButton, ListSubheader, ListItemText, ListItemIcon } from "@mui/material";
+import { Button, List, ListItem, ListItemButton, ListSubheader, ListItemText, ListItemIcon, Paper } from "@mui/material";
 import Link from "next/link";
 import { NextPage } from "next";
 import { Add, ArrowForwardIos } from "@mui/icons-material";
@@ -20,39 +20,41 @@ const ServiceAccountPage: NextPage<HomeProps> = ({ serviceAccounts }) => {
     const namespaces = unique(serviceAccounts.map(sa => sa.metadata.namespace));
 
     return (
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%", border: "1px solid blue", flexDirection: "column" }}>
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%", flexDirection: "column" }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", width: "100%" }}>
                 <Button startIcon={<Add />}>New service account</Button>
             </div>
-            <div style={{ border: "1px solid red", width: "50%", maxHeight: "50%", overflowY: "auto" }}>
-            <List
-                sx={{
-                width: '100%',
-                '& ul': { padding: 0 },
-                '& li': { paddingTop: 0, paddingBottom: 0 }
-                }}
-                subheader={<li />}
-            >
-                {namespaces.map((namespace) => (
-                <li key={namespace}>
-                    <ul>
-                    <ListSubheader>{namespace}</ListSubheader>
-                    {serviceAccounts.filter(sa => sa.metadata.namespace === namespace).map((sa) => (
-                        <Link key={`${namespace}-${sa.metadata.name}`} href={`/serviceaccount/${namespace}/${sa.metadata.name}`}>
-                        <ListItem>
-                            <ListItemButton>
-                                <ListItemText primary={sa.metadata.name} />
-                                <ListItemIcon>
-                                    <ArrowForwardIos />
-                                </ListItemIcon>
-                            </ListItemButton>
-                        </ListItem>
-                        </Link>
-                    ))}
-                    </ul>
-                </li>
-                ))}
-            </List>
+            <div style={{ width: "100%", maxHeight: "50%" }}>
+                <Paper style={{ maxHeight: "100%", overflowY: "auto" }}>
+                    <List
+                        sx={{
+                        width: '100%',
+                        '& ul': { padding: 0 },
+                        '& li': { paddingTop: 0, paddingBottom: 0 }
+                        }}
+                        subheader={<li />}
+                    >
+                        {namespaces.map((namespace) => (
+                        <li key={namespace}>
+                            <ul>
+                            <ListSubheader>{namespace}</ListSubheader>
+                            {serviceAccounts.filter(sa => sa.metadata.namespace === namespace).map((sa) => (
+                                <Link key={`${namespace}-${sa.metadata.name}`} href={`/serviceaccount/${namespace}/${sa.metadata.name}`}>
+                                <ListItem>
+                                    <ListItemButton>
+                                        <ListItemText primary={sa.metadata.name} />
+                                        <ListItemIcon>
+                                            <ArrowForwardIos />
+                                        </ListItemIcon>
+                                    </ListItemButton>
+                                </ListItem>
+                                </Link>
+                            ))}
+                            </ul>
+                        </li>
+                        ))}
+                    </List>
+                </Paper>
             </div>
         </div>
     );

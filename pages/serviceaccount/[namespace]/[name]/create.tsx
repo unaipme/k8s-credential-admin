@@ -2,8 +2,27 @@ import React, { FunctionComponent, useState } from "react";
 import { NextPage, NextPageContext } from "next";
 import { firstValueFrom } from "rxjs";
 import kubernetes, { Role, RoleRule, RuleVerb } from "../../../../services/kubernetes";
-import { Box, Button, Checkbox, Chip, Collapse, Divider, IconButton, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, Typography } from "@mui/material";
-import { Add, KeyboardArrowUp, KeyboardArrowDown } from "@mui/icons-material";
+import {
+    Box,
+    Button,
+    Checkbox,
+    Collapse,
+    Divider,
+    IconButton,
+    Paper,
+    Stack,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Toolbar,
+    Typography
+} from "@mui/material";
+import { Add, Delete, KeyboardArrowUp, KeyboardArrowDown } from "@mui/icons-material";
+import VerbChip from "../../../../components/VerbChip";
+import RoleCreationDialog from "../../../../components/RoleCreationDialog";
 
 type CreateRoleBindingProps = {
     namespace: string;
@@ -35,9 +54,10 @@ const groupRoleRules = (rules: RoleRule []): GroupedRules => {
 type ExistingRoleRowProps = {
     role: Role;
     onRoleSelect: (role: Role) => void;
+    onDelete: (role: Role) => void;
 }
 
-const ExistingRoleRow: FunctionComponent<ExistingRoleRowProps> = ({ role, onRoleSelect }) => {
+const ExistingRoleRow: FunctionComponent<ExistingRoleRowProps> = ({ role, onRoleSelect, onDelete }) => {
     const [ open, setOpen ] = useState(false);
     return (
         <>
@@ -52,6 +72,11 @@ const ExistingRoleRow: FunctionComponent<ExistingRoleRowProps> = ({ role, onRole
                 </TableCell>
                 <TableCell component="th" scope="row">
                     {role.metadata.name}
+                </TableCell>
+                <TableCell padding="checkbox">
+                    <IconButton onClick={() => onDelete(role)}>
+                        <Delete />
+                    </IconButton>
                 </TableCell>
             </TableRow>
             <TableRow>
@@ -84,9 +109,7 @@ const ExistingRoleRow: FunctionComponent<ExistingRoleRowProps> = ({ role, onRole
                                             <TableCell>
                                                 <Stack direction="row" spacing={1}>
                                                     {verbs.map(verb => (
-                                                        <Tooltip key={verb} title={kubernetes.info.rbac.verbs[verb]}>
-                                                            <Chip label={verb} style={{ cursor: "help" }} />
-                                                        </Tooltip>
+                                                        <VerbChip key={verb} verb={verb} />
                                                     ))}
                                                 </Stack>
                                             </TableCell>
@@ -97,7 +120,6 @@ const ExistingRoleRow: FunctionComponent<ExistingRoleRowProps> = ({ role, onRole
                             </Table>
                         </Box>
                     </Collapse>
-                    
                 </TableCell>
             </TableRow>
         </>
@@ -106,6 +128,8 @@ const ExistingRoleRow: FunctionComponent<ExistingRoleRowProps> = ({ role, onRole
 
 const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, existingRoles }) => {
     const [ selected, select ] = useState<Role []>([]);
+    const [ dialogOpen, setDialogOpen ] = useState<boolean>(false);
+    const [ roles, setRoles ] = useState<Role []>(existingRoles);
 
     const onRoleSelect = (role: Role) => {
         if (selected.includes(role)) {
@@ -117,18 +141,48 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
         console.log(selected);
     }
 
+    const saveRole = (role: Role) => {
+        fetch("/api/kubernetes/roles", {
+            method: "POST",
+            body: JSON.stringify(role)
+        });
+        setRoles([
+            ...roles,
+            role
+        ]);
+    }
+
+    const deleteRole = (role: Role) => {
+        const index = roles.findIndex(r => role === r);
+        fetch("/api/kubernetes/roles", {
+            method: "DELETE",
+            body: JSON.stringify(role)
+        }).then((res) => {
+            console.log("DELETE RESPONSE", res);
+            setRoles([
+                ...roles.slice(0, index),
+                ...roles.slice(index + 1)
+            ]);
+        }).catch((err) => console.log("DELETE ERROR", err));
+    }
+
     return (
         <div>
-            <Typography variant="h4">Create role binding</Typography>
-            <Divider />
+            {dialogOpen &&
+            <RoleCreationDialog open={dialogOpen} onClose={() => setDialogOpen(false)} onSave={saveRole} namespace={namespace} />
+            }
             <Box>
-                <Typography variant="h5">Create a new role</Typography>
-                <Button startIcon={<Add />}>Create</Button>
-            </Box>
-            <Divider />
-            <Box>
-                <Typography variant="h5">Use existing roles</Typography>
-                {existingRoles.length > 0 ?
+                <div style={{ float: "right" }}>
+                
+                </div>
+                <Toolbar sx={{ 
+                    pl: { sm: 2 },
+                    pr: { xs: 1, sm: 1 }
+                }}>
+                    <Typography variant="h6" component="div" sx={{ flex: "1 1 100%" }}>Create role binding</Typography>
+                    <Button startIcon={<Add />} onClick={() => setDialogOpen(true)}>Create role</Button>
+                </Toolbar>
+                {roles.length > 0 ?
                     <TableContainer component={Paper}>
                         <Table>
                             <TableHead>
@@ -136,11 +190,15 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
                                     <TableCell />
                                     <TableCell />
                                     <TableCell>Role name</TableCell>
+                                    <TableCell></TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                            {existingRoles.map(role => (
-                                <ExistingRoleRow key={role.metadata.name} role={role} onRoleSelect={onRoleSelect} />
+                            {roles.map(role => (
+                                <ExistingRoleRow key={role.metadata.name}
+                                                 role={role}
+                                                 onRoleSelect={onRoleSelect}
+                                                 onDelete={deleteRole} />
                             ))}
                             </TableBody>
                         </Table>
@@ -157,7 +215,7 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
 
 const getServerSideProps = async (context: NextPageContext) => {
     const { namespace, name } = context.query;
-    const existingRoles = await firstValueFrom(kubernetes.getNamespaceRoles(namespace));
+    const existingRoles = await firstValueFrom(kubernetes.getNamespaceRoles(namespace as string));
     return {
         props: { namespace, name, existingRoles }
     }

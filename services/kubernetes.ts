@@ -1,6 +1,6 @@
 import https from "https";
 import { Observable, from } from "rxjs";
-import { map } from "rxjs/operators";
+import { map, mergeAll, mergeMap, pluck, tap, toArray } from "rxjs/operators";
 
 const token = process.env.TOKEN;
 const api = `https://${process.env.KUBERNETES_SERVICE_HOST}:${process.env.KUBERNETES_SERVICE_PORT}`;
@@ -44,41 +44,99 @@ type Role = {
     rules: RoleRule [];
 }
 
+type ApiGroupVersion = {
+    groupVersion: string;
+    version: string;
+};
+
+type ApiGroup = {
+    name: string;
+    versions: ApiGroupVersion [];
+    preferredVersion: ApiGroupVersion;
+}
+
+type ApiResource = {
+    name: string;
+    singularName: string;
+    namespaced: boolean;
+    kind: string;
+    verbs: RuleVerb [];
+    shortNames: string [];
+}
+
 const agent = new https.Agent({
     rejectUnauthorized: false
 });
 
 const f = <T,>(url: string, options?: RequestInit): Observable<T> => {
     return from(new Promise<T>((resolve, reject) => {
-        fetch(`${api}/${url}`, {
+        const fullOptions = {
             ...options,
             agent,
             headers: {
                 ...options?.headers,
+                "Content-Type": "application/json",
                 "Authorization": `Bearer ${token}`
             }
-        }).then(response => {
-            response.json().then(data => resolve(data.items)).catch(err => reject(err))
+        };
+        // console.log("Fetching", url, fullOptions);
+        fetch(`${api}/${url}`, fullOptions).then(response => {
+            response.json().then(data => resolve(data)).catch(err => reject(err))
         }).catch(err => reject(err));
     }));
 }
 
 const kubernetes = {
     getAllServiceAccounts(): Observable<ServiceAccount []> {
-        return f("api/v1/serviceaccounts");
+        return f("api/v1/serviceaccounts").pipe(
+            pluck("items")
+        );
     },
     getNamespacedServiceAccounts(namespace: string): Observable<ServiceAccount []> {
-        return f(`api/v1/namespaces/${namespace}/serviceaccounts`);
+        return f(`api/v1/namespaces/${namespace}/serviceaccounts`).pipe(
+            pluck("items")
+        );
     },
     getServiceAccountRoleBindings(serviceAccount: string, namespace: string): Observable<RoleBinding []> {
         return f<RoleBinding []>(`apis/rbac.authorization.k8s.io/v1/namespaces/${namespace}/rolebindings`).pipe(
+            pluck("items"),
             map(items => items.filter(rb =>
                 rb.subjects.some(sub => sub.kind === "ServiceAccount" && sub.name === serviceAccount)
             ))
         );
     },
     getNamespaceRoles(namespace: string): Observable<Role []> {
-        return f(`apis/rbac.authorization.k8s.io/v1/namespaces/${namespace}/roles`);
+        return f(`apis/rbac.authorization.k8s.io/v1/namespaces/${namespace}/roles`).pipe(
+            pluck("items")
+        );
+    },
+    getApis(): Observable<ApiGroup []> {
+        return f("apis");
+    },
+    getApiResourceTypes(api: ApiGroup): Observable<ApiResource []> {
+        return f(`apis/${api.preferredVersion.groupVersion}`);
+    },
+    getAllApiResourceTypes(): Observable<{api: ApiGroup, resources: ApiResource []} []> {
+        return this.getApis().pipe(
+            pluck("groups"),
+            mergeAll(),
+            mergeMap(api => this.getApiResourceTypes(api).pipe(
+                map(({ resources }) => ({ api, resources }))
+            )),
+            toArray(),
+        )
+    },
+    createRole(role: Role): Observable<any> {
+        return f(`apis/rbac.authorization.k8s.io/v1/namespaces/${role.metadata.namespace}/roles`, {
+            method: "POST",
+            body: JSON.stringify(role)
+        });
+    },
+    deleteRole(role: Role): Observable<any> {
+        return f(`apis/rbac.authorization.k8s.io/v1/namespaces/${role.metadata.namespace}/roles/${role.metadata.name}`, {
+            method: "DELETE",
+            body: JSON.stringify(role)
+        });
     },
     info: {
         rbac: {
@@ -100,6 +158,9 @@ const kubernetes = {
 export default kubernetes;
 
 export type {
+    ApiResource,
+    ApiGroup,
+    ApiGroupVersion,
     ServiceAccount,
     RoleBinding,
     RoleRule,
