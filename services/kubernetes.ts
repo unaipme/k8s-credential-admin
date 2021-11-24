@@ -24,7 +24,7 @@ type RoleBinding = {
         name: string;
     },
     subjects: {
-        apiGroup: string;
+        apiGroup?: string;
         kind: string;
         name: string;
         namespace: string;
@@ -142,6 +142,12 @@ const kubernetes = {
         return f(`apis/rbac.authorization.k8s.io/v1/namespaces/${role.metadata.namespace}/roles/${role.metadata.name}`, {
             method: "PUT",
             body: JSON.stringify(role)
+        });
+    },
+    createRoleBinding(roleBinding: RoleBinding): Observable<any> {
+        return f(`apis/rbac.authorization.k8s.io/v1/namespaces/${roleBinding.metadata.namespace}/rolebindings`, {
+            method: "POST",
+            body: JSON.stringify(roleBinding)
         });
     },
     info: {

@@ -1,10 +1,13 @@
 import React, { FunctionComponent, useState } from "react";
 import { NextPage, NextPageContext } from "next";
+import Link from "next/link";
+import { useRouter } from "next/router";
 import { firstValueFrom } from "rxjs";
-import kubernetes, { Role, RoleRule, RuleVerb } from "../../../../services/kubernetes";
+import kubernetes, { Role, RoleBinding, RoleRule, RuleVerb } from "../../../../services/kubernetes";
 import {
     Box,
     Button,
+    ButtonGroup,
     Checkbox,
     Collapse,
     Divider,
@@ -17,10 +20,11 @@ import {
     TableContainer,
     TableHead,
     TableRow,
+    TextField,
     Toolbar,
     Typography
 } from "@mui/material";
-import { Add, Delete, Edit, KeyboardArrowUp, KeyboardArrowDown } from "@mui/icons-material";
+import { Add, ArrowBack, Delete, Edit, KeyboardArrowUp, KeyboardArrowDown, Save } from "@mui/icons-material";
 import VerbChip from "../../../../components/VerbChip";
 import RoleDialog from "../../../../components/RoleDialog";
 
@@ -133,19 +137,47 @@ const ExistingRoleRow: FunctionComponent<ExistingRoleRowProps> = ({ role, onSele
 }
 
 const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, existingRoles }) => {
-    const [ selected, select ] = useState<Role []>([]);
+    const [ roleBinding, setRoleBinding ] = useState<RoleBinding>({
+        metadata: {
+            name: "",
+            namespace
+        },
+        roleRef: {
+            apiGroup: "rbac.authorization.k8s.io",
+            kind: "Role",
+            name: ""
+        },
+        subjects: [{
+            kind: "ServiceAccount",
+            name,
+            namespace
+        }]
+    })
     const [ dialogOpen, setDialogOpen ] = useState<boolean>(false);
     const [ roles, setRoles ] = useState<Role []>(existingRoles);
     const [ editedRole, setEditedRole ] = useState<Role | undefined>();
 
+    const router = useRouter();
+
     const onRoleSelect = (role: Role) => {
-        if (selected.includes(role)) {
-            const index = selected.findIndex(r => r === role);
-            select([...selected.slice(0, index), ...selected.slice(index + 1)]);
+        if (roleBinding.roleRef.name === "") {
+            setRoleBinding({
+                ...roleBinding,
+                roleRef: {
+                    ...roleBinding.roleRef,
+                    name: (role.metadata.name as string),
+                    namespace: (role.metadata.namespace as string)
+                }
+            });
         } else {
-            select([...selected, role]);
+            setRoleBinding({
+                ...roleBinding,
+                roleRef: {
+                    ...roleBinding.roleRef,
+                    name: ""
+                }
+            });
         }
-        console.log(selected);
     }
 
     const saveRole = (role: Role) => {
@@ -170,7 +202,6 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
             method: "DELETE",
             body: JSON.stringify(role)
         }).then((res) => {
-            console.log("DELETE RESPONSE", res);
             setRoles([
                 ...roles.slice(0, index),
                 ...roles.slice(index + 1)
@@ -181,6 +212,25 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
     const editRole = (role: Role) => {
         console.log("EDITING", role);
         setEditedRole(role);
+    }
+
+    const createRoleBinding = () => {
+        fetch("/api/kubernetes/rolebindings", {
+            method: "POST",
+            body: JSON.stringify(roleBinding)
+        }).then(() => {
+            router.push(`/serviceaccount/${namespace}/${name}`);
+        }).catch(err => console.log("ERROR!", err));
+    }
+
+    const setRoleBindingName = (name) => {
+        setRoleBinding({
+            ...roleBinding,
+            metadata: {
+                ...roleBinding.metadata,
+                name
+            }
+        })
     }
 
     return (
@@ -199,32 +249,53 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
                     pl: { sm: 2 },
                     pr: { xs: 1, sm: 1 }
                 }}>
-                    <Typography variant="h6" component="div" sx={{ flex: "1 1 100%" }}>Create role binding</Typography>
-                    <Button startIcon={<Add />} onClick={() => setDialogOpen(true)}>Create role</Button>
+                    <Typography variant="h6" component="div" sx={{ flex: "1 1 100%" }}>
+                        Create role binding for service account { name }
+                    </Typography>
                 </Toolbar>
+                <Box component="form" sx={{ "& > :not(style)": { m: 1, width: "25ch" } }} noValidate autoComplete="off">
+                    <TextField label="Name" variant="outlined" onChange={($event) => setRoleBindingName($event.target.value)} />
+                    <TextField label="Namespace" disabled value={namespace} variant="outlined" />
+                </Box>
+                <Divider />
+                &nbsp;
                 {roles.length > 0 ?
-                    <TableContainer component={Paper}>
-                        <Table>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell />
-                                    <TableCell />
-                                    <TableCell>Role name</TableCell>
-                                    <TableCell></TableCell>
-                                    <TableCell></TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                            {roles.map(role => (
-                                <ExistingRoleRow key={role.metadata.name}
-                                                 role={role}
-                                                 onSelect={onRoleSelect}
-                                                 onDelete={deleteRole}
-                                                 onEdit={editRole} />
-                            ))}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                    <>
+                        <TableContainer component={Paper}>
+                            <Table>
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell />
+                                        <TableCell />
+                                        <TableCell>Role name</TableCell>
+                                        <TableCell></TableCell>
+                                        <TableCell></TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                {roles.map(role => (
+                                    <ExistingRoleRow key={role.metadata.name}
+                                                    role={role}
+                                                    onSelect={onRoleSelect}
+                                                    onDelete={deleteRole}
+                                                    onEdit={editRole} />
+                                ))}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                        <div style={{ display: "flex", width: "100%", justifyContent: "flex-end" }}>
+                            <ButtonGroup>
+                                <Button disabled={roleBinding.roleRef.name === "" || roleBinding.metadata.name === ""}
+                                        startIcon={<Save />}
+                                        onClick={() => createRoleBinding()}>
+                                    Create
+                                </Button>
+                                <Link href={`/serviceaccount/${namespace}/${name}`}>
+                                    <Button color="error" startIcon={<ArrowBack />}>Go back</Button>
+                                </Link>
+                            </ButtonGroup>
+                        </div>
+                    </>
                     :
                     <div>
                         No pre-existing roles were found in namespace {namespace}
