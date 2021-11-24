@@ -6,20 +6,24 @@ import { ArrowForwardIos } from '@mui/icons-material'
 
 const Home: NextPage = () => {
   return (
-    <Paper>
-      <List>
-        <Link href="/serviceaccount">
-          <ListItem disablePadding>
-            <ListItemButton>
-              <ListItemText>Manage service accounts</ListItemText>
-              <ListItemIcon>
-                <ArrowForwardIos />
-              </ListItemIcon>
-            </ListItemButton>
-          </ListItem>
-        </Link>
-      </List>
-    </Paper>
+    <div style={{ display: "flex", width: "50%" }}>
+      <div style={{ width: "100%" }}>
+        <Paper>
+          <List>
+            <Link href="/serviceaccount">
+              <ListItem disablePadding>
+                <ListItemButton>
+                  <ListItemText>Manage service accounts</ListItemText>
+                  <ListItemIcon>
+                    <ArrowForwardIos />
+                  </ListItemIcon>
+                </ListItemButton>
+              </ListItem>
+            </Link>
+          </List>
+        </Paper>
+      </div>
+    </div>
   )
 }
 

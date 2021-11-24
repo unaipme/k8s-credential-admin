@@ -20,9 +20,9 @@ import {
     Toolbar,
     Typography
 } from "@mui/material";
-import { Add, Delete, KeyboardArrowUp, KeyboardArrowDown } from "@mui/icons-material";
+import { Add, Delete, Edit, KeyboardArrowUp, KeyboardArrowDown } from "@mui/icons-material";
 import VerbChip from "../../../../components/VerbChip";
-import RoleCreationDialog from "../../../../components/RoleCreationDialog";
+import RoleDialog from "../../../../components/RoleDialog";
 
 type CreateRoleBindingProps = {
     namespace: string;
@@ -53,11 +53,12 @@ const groupRoleRules = (rules: RoleRule []): GroupedRules => {
 
 type ExistingRoleRowProps = {
     role: Role;
-    onRoleSelect: (role: Role) => void;
+    onSelect: (role: Role) => void;
     onDelete: (role: Role) => void;
+    onEdit: (role: Role) => void;
 }
 
-const ExistingRoleRow: FunctionComponent<ExistingRoleRowProps> = ({ role, onRoleSelect, onDelete }) => {
+const ExistingRoleRow: FunctionComponent<ExistingRoleRowProps> = ({ role, onSelect, onDelete, onEdit }) => {
     const [ open, setOpen ] = useState(false);
     return (
         <>
@@ -68,10 +69,15 @@ const ExistingRoleRow: FunctionComponent<ExistingRoleRowProps> = ({ role, onRole
                     </IconButton>
                 </TableCell>
                 <TableCell padding="checkbox">
-                    <Checkbox onChange={() => onRoleSelect(role)} />
+                    <Checkbox onChange={() => onSelect(role)} />
                 </TableCell>
                 <TableCell component="th" scope="row">
                     {role.metadata.name}
+                </TableCell>
+                <TableCell padding="checkbox">
+                    <IconButton onClick={() => onEdit(role)}>
+                        <Edit />
+                    </IconButton>
                 </TableCell>
                 <TableCell padding="checkbox">
                     <IconButton onClick={() => onDelete(role)}>
@@ -80,7 +86,7 @@ const ExistingRoleRow: FunctionComponent<ExistingRoleRowProps> = ({ role, onRole
                 </TableCell>
             </TableRow>
             <TableRow>
-                <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={3}>
+                <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={5}>
                     <Collapse in={open} timeout="auto" unmountOnExit>
                         <Box sx={{ margin: 1 }}>
                             <Typography variant="h6" gutterBottom component="div">
@@ -130,6 +136,7 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
     const [ selected, select ] = useState<Role []>([]);
     const [ dialogOpen, setDialogOpen ] = useState<boolean>(false);
     const [ roles, setRoles ] = useState<Role []>(existingRoles);
+    const [ editedRole, setEditedRole ] = useState<Role | undefined>();
 
     const onRoleSelect = (role: Role) => {
         if (selected.includes(role)) {
@@ -142,15 +149,20 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
     }
 
     const saveRole = (role: Role) => {
-        fetch("/api/kubernetes/roles", {
-            method: "POST",
-            body: JSON.stringify(role)
-        });
-        setRoles([
-            ...roles,
-            role
-        ]);
-    }
+        const index = roles.findIndex(r => r.metadata.name === role.metadata.name);
+        if (index === -1) {
+            setRoles([
+                ...roles,
+                role
+            ]);
+        } else {
+            setRoles([
+                ...roles.slice(0, index),
+                role,
+                ...roles.slice(index + 1)
+            ]);
+        }
+    };
 
     const deleteRole = (role: Role) => {
         const index = roles.findIndex(r => role === r);
@@ -166,10 +178,18 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
         }).catch((err) => console.log("DELETE ERROR", err));
     }
 
+    const editRole = (role: Role) => {
+        console.log("EDITING", role);
+        setEditedRole(role);
+    }
+
     return (
-        <div>
-            {dialogOpen &&
-            <RoleCreationDialog open={dialogOpen} onClose={() => setDialogOpen(false)} onSave={saveRole} namespace={namespace} />
+        <div style={{ width: "50%" }}>
+            {!!dialogOpen ?
+            <RoleDialog open={true} onClose={() => setDialogOpen(false)} onSave={saveRole} namespace={namespace} />
+            :
+            !!editedRole &&
+            <RoleDialog open={true} onClose={() => setEditedRole(undefined)} onSave={saveRole} initialRole={editedRole!} />
             }
             <Box>
                 <div style={{ float: "right" }}>
@@ -191,14 +211,16 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
                                     <TableCell />
                                     <TableCell>Role name</TableCell>
                                     <TableCell></TableCell>
+                                    <TableCell></TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
                             {roles.map(role => (
                                 <ExistingRoleRow key={role.metadata.name}
                                                  role={role}
-                                                 onRoleSelect={onRoleSelect}
-                                                 onDelete={deleteRole} />
+                                                 onSelect={onRoleSelect}
+                                                 onDelete={deleteRole}
+                                                 onEdit={editRole} />
                             ))}
                             </TableBody>
                         </Table>

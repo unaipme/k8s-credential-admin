@@ -8,8 +8,8 @@ export default async function handler(
 ) {
     console.log("Role API call");
     const { method } = req;
+    const role: Role = JSON.parse(req.body);
     if (method === "POST") {
-        const role: Role = JSON.parse(req.body);
         try {
             await firstValueFrom(kubernetes.createRole(role));
             res.status(201);
@@ -19,7 +19,6 @@ export default async function handler(
             });
         }
     } else if (method === "DELETE") {
-        const role: Role = JSON.parse(req.body);
         try {
             console.log("Deleting role", role.metadata.name);
             await firstValueFrom(kubernetes.deleteRole(role));
@@ -27,6 +26,18 @@ export default async function handler(
             res.status(201);
         } catch (e) {
             console.log("Role deletion failed", role.metadata.name);
+            res.status(500).json({
+                error: e
+            })
+        }
+    } else if (method === "PUT") {
+        try {
+            console.log("Updating role", role.metadata.name);
+            await firstValueFrom(kubernetes.updateRole(role));
+            console.log("Updated role successfully", role.metadata.name);
+            res.status(201);
+        } catch (e) {
+            console.log("Role update failed", role.metadata.name);
             res.status(500).json({
                 error: e
             })

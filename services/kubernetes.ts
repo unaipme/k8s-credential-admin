@@ -138,6 +138,12 @@ const kubernetes = {
             body: JSON.stringify(role)
         });
     },
+    updateRole(role: Role): Observable<any> {
+        return f(`apis/rbac.authorization.k8s.io/v1/namespaces/${role.metadata.namespace}/roles/${role.metadata.name}`, {
+            method: "PUT",
+            body: JSON.stringify(role)
+        });
+    },
     info: {
         rbac: {
             verbs: {

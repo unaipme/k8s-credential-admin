@@ -20,7 +20,7 @@ const ServiceAccountPage: NextPage<HomeProps> = ({ serviceAccounts }) => {
     const namespaces = unique(serviceAccounts.map(sa => sa.metadata.namespace));
 
     return (
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%", flexDirection: "column" }}>
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%", width: "50%", flexDirection: "column" }}>
             <div style={{ display: "flex", justifyContent: "flex-end", width: "100%" }}>
                 <Button startIcon={<Add />}>New service account</Button>
             </div>
