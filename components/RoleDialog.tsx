@@ -39,7 +39,7 @@ type CreationDialogProps = {
 const RoleDialog: NextPage<CreationDialogProps> = ({ namespace, initialRole, open, onClose, onSave }) => {
     const [ role, setRole ] = useState<Role>(initialRole || {
         metadata: {
-            namespace,
+            namespace: namespace!,
             name: ""
         },
         rules: []
@@ -51,6 +51,7 @@ const RoleDialog: NextPage<CreationDialogProps> = ({ namespace, initialRole, ope
     const [ allowedVerbs, setAllowedVerbs ] = useState<RuleVerb []>([]);
     const [ selectedVerbs, setSelectedVerbs ] = useState<RuleVerb []>([]);
 
+    // @ts-ignore
     const fetcher = (...args: any []) => fetch(...args).then(res => res.json());
     const data: {api: ApiGroup, resources: ApiResource []} [] = useSWR("/api/kubernetes/api-resources", fetcher).data;
 

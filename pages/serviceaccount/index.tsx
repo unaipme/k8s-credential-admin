@@ -39,7 +39,7 @@ const ServiceAccountPage: NextPage<HomeProps> = ({ serviceAccounts }) => {
                             <ul>
                             <ListSubheader>{namespace}</ListSubheader>
                             {serviceAccounts.filter(sa => sa.metadata.namespace === namespace).map((sa) => (
-                                <Link key={`${namespace}-${sa.metadata.name}`} href={`/serviceaccount/${namespace}/${sa.metadata.name}`}>
+                                <Link key={`${namespace}-${sa.metadata.name}`} href={`/serviceaccount/${namespace}/${sa.metadata.name}`} passHref>
                                 <ListItem>
                                     <ListItemButton>
                                         <ListItemText primary={sa.metadata.name} />

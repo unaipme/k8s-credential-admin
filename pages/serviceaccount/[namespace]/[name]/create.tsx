@@ -165,8 +165,7 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
                 ...roleBinding,
                 roleRef: {
                     ...roleBinding.roleRef,
-                    name: (role.metadata.name as string),
-                    namespace: (role.metadata.namespace as string)
+                    name: (role.metadata.name as string)
                 }
             });
         } else {
@@ -201,7 +200,7 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
         fetch("/api/kubernetes/roles", {
             method: "DELETE",
             body: JSON.stringify(role)
-        }).then((res) => {
+        }).then(() => {
             setRoles([
                 ...roles.slice(0, index),
                 ...roles.slice(index + 1)
@@ -223,7 +222,7 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
         }).catch(err => console.log("ERROR!", err));
     }
 
-    const setRoleBindingName = (name) => {
+    const setRoleBindingName = (name: string) => {
         setRoleBinding({
             ...roleBinding,
             metadata: {
@@ -258,7 +257,15 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
                     <TextField label="Namespace" disabled value={namespace} variant="outlined" />
                 </Box>
                 <Divider />
-                &nbsp;
+                <Toolbar sx={{
+                    pl: { sm: 2 },
+                    pr: { xs: 1, sm: 1 },
+                }}>
+                    <Typography sx={{ flex: "1 1 100%" }}>
+                        Choose or create roles to bind to
+                    </Typography>
+                    <Button variant="outlined" onClick={() => setDialogOpen(true)} startIcon={<Add />}>Create role</Button>
+                </Toolbar>
                 {roles.length > 0 ?
                     <>
                         <TableContainer component={Paper}>
@@ -283,14 +290,14 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
                                 </TableBody>
                             </Table>
                         </TableContainer>
-                        <div style={{ display: "flex", width: "100%", justifyContent: "flex-end" }}>
+                        <div style={{ display: "flex", paddingTop: "5px", paddingBottom: "5px", justifyContent: "flex-end" }}>
                             <ButtonGroup>
                                 <Button disabled={roleBinding.roleRef.name === "" || roleBinding.metadata.name === ""}
                                         startIcon={<Save />}
                                         onClick={() => createRoleBinding()}>
                                     Create
                                 </Button>
-                                <Link href={`/serviceaccount/${namespace}/${name}`}>
+                                <Link href={`/serviceaccount/${namespace}/${name}`} passHref>
                                     <Button color="error" startIcon={<ArrowBack />}>Go back</Button>
                                 </Link>
                             </ButtonGroup>

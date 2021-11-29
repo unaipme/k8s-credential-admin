@@ -10,7 +10,7 @@ const Home: NextPage = () => {
       <div style={{ width: "100%" }}>
         <Paper>
           <List>
-            <Link href="/serviceaccount">
+            <Link href="/serviceaccount" passHref>
               <ListItem disablePadding>
                 <ListItemButton>
                   <ListItemText>Manage service accounts</ListItemText>

@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { firstValueFrom } from "rxjs";
-import kubernetes, { Role } from "../../../services/kubernetes";
+import kubernetes, { Role } from "../../../../services/kubernetes";
 
 export default async function handler(
     req: NextApiRequest,

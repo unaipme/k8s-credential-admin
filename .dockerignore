@@ -1,0 +1,4 @@
+./README.md
+./next-env.d.ts
+./next.config.js
+node_modules

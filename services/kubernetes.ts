@@ -1,9 +1,15 @@
 import https from "https";
 import { Observable, from } from "rxjs";
-import { map, mergeAll, mergeMap, pluck, tap, toArray } from "rxjs/operators";
+import { filter, map, mergeAll, mergeMap, pluck, tap, toArray } from "rxjs/operators";
 
 const token = process.env.TOKEN;
 const api = `https://${process.env.KUBERNETES_SERVICE_HOST}:${process.env.KUBERNETES_SERVICE_PORT}`;
+
+type Metadata = {
+    name: string;
+    namespace: string;
+    [key:string]: any;
+}
 
 type ServiceAccount = {
     apiVersion: string;
@@ -13,11 +19,11 @@ type ServiceAccount = {
     } [];
     kind: string;
     secrets: any [];
-    metadata: any;
+    metadata: Metadata;
 }
 
 type RoleBinding = {
-    metadata: any;
+    metadata: Metadata;
     roleRef: {
         apiGroup: string;
         kind: string;
@@ -40,7 +46,7 @@ type RoleRule = {
 };
 
 type Role = {
-    metadata: any;
+    metadata: Metadata;
     rules: RoleRule [];
 }
 
@@ -62,6 +68,10 @@ type ApiResource = {
     kind: string;
     verbs: RuleVerb [];
     shortNames: string [];
+}
+
+type ApiResourceList = {
+    resources: ApiResource [];
 }
 
 const agent = new https.Agent({
@@ -89,36 +99,47 @@ const f = <T,>(url: string, options?: RequestInit): Observable<T> => {
 const kubernetes = {
     getAllServiceAccounts(): Observable<ServiceAccount []> {
         return f("api/v1/serviceaccounts").pipe(
-            pluck("items")
+            map((response: any) => response.items as ServiceAccount [])
         );
     },
     getNamespacedServiceAccounts(namespace: string): Observable<ServiceAccount []> {
         return f(`api/v1/namespaces/${namespace}/serviceaccounts`).pipe(
-            pluck("items")
+            map((response: any) => response.items as ServiceAccount [])
         );
     },
     getServiceAccountRoleBindings(serviceAccount: string, namespace: string): Observable<RoleBinding []> {
         return f<RoleBinding []>(`apis/rbac.authorization.k8s.io/v1/namespaces/${namespace}/rolebindings`).pipe(
-            pluck("items"),
+            map((response: any) => response.items as RoleBinding []),
             map(items => items.filter(rb =>
                 rb.subjects.some(sub => sub.kind === "ServiceAccount" && sub.name === serviceAccount)
             ))
         );
     },
+    getServiceAccountRoles(serviceAccount: string, namespace: string): Observable<{ roleBinding: RoleBinding, role: Role } []> {
+        return this.getServiceAccountRoleBindings(serviceAccount, namespace).pipe(
+            mergeAll(),
+            mergeMap((roleBinding: RoleBinding) => this.getNamespaceRoles(namespace).pipe(
+                mergeAll(),
+                filter((role: Role) => roleBinding.roleRef.name === role.metadata.name),
+                map((role: Role) => ({ roleBinding, role }))
+            )),
+            toArray()
+        );
+    },
     getNamespaceRoles(namespace: string): Observable<Role []> {
         return f(`apis/rbac.authorization.k8s.io/v1/namespaces/${namespace}/roles`).pipe(
-            pluck("items")
+            map((response: any) => response.items as Role [])
         );
     },
     getApis(): Observable<ApiGroup []> {
         return f("apis");
     },
-    getApiResourceTypes(api: ApiGroup): Observable<ApiResource []> {
+    getApiResourceTypes(api: ApiGroup): Observable<ApiResourceList> {
         return f(`apis/${api.preferredVersion.groupVersion}`);
     },
     getAllApiResourceTypes(): Observable<{api: ApiGroup, resources: ApiResource []} []> {
         return this.getApis().pipe(
-            pluck("groups"),
+            map((response: any) => response.groups as ApiGroup []),
             mergeAll(),
             mergeMap(api => this.getApiResourceTypes(api).pipe(
                 map(({ resources }) => ({ api, resources }))
