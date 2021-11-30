@@ -1,6 +1,6 @@
 import https from "https";
 import { Observable, from } from "rxjs";
-import { filter, map, mergeAll, mergeMap, pluck, tap, toArray } from "rxjs/operators";
+import { filter, map, mergeAll, mergeMap, toArray } from "rxjs/operators";
 
 const token = process.env.TOKEN;
 const api = `https://${process.env.KUBERNETES_SERVICE_HOST}:${process.env.KUBERNETES_SERVICE_PORT}`;

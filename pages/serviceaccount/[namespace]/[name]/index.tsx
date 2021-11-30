@@ -120,18 +120,20 @@ const ServiceAccountInfo: NextPage<ServiceAccountInfoProps> = ({ name, namespace
                 </Table>
             </TableContainer>
             }
-            <ButtonGroup>
-                <Link href={`/serviceaccount/${namespace}/${name}/create`} passHref>
-                    <Button startIcon={<Add />}>
-                        Create role binding
-                    </Button>
-                </Link>
-                <Link href="/serviceaccount" passHref>
-                    <Button startIcon={<ArrowBack />} color="error">
-                        Go back
-                    </Button>
-                </Link>
-            </ButtonGroup>
+            <div className="buttongroup-container">
+                <ButtonGroup>
+                    <Link href={`/serviceaccount/${namespace}/${name}/create`} passHref>
+                        <Button startIcon={<Add />}>
+                            Create role binding
+                        </Button>
+                    </Link>
+                    <Link href="/serviceaccount" passHref>
+                        <Button startIcon={<ArrowBack />} color="error">
+                            Go back
+                        </Button>
+                    </Link>
+                </ButtonGroup>
+            </div>
         </div>
     )
 }

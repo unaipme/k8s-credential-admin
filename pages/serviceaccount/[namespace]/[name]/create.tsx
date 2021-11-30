@@ -290,7 +290,7 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
                                 </TableBody>
                             </Table>
                         </TableContainer>
-                        <div style={{ display: "flex", paddingTop: "5px", paddingBottom: "5px", justifyContent: "flex-end" }}>
+                        <div className="buttongroup-container">
                             <ButtonGroup>
                                 <Button disabled={roleBinding.roleRef.name === "" || roleBinding.metadata.name === ""}
                                         startIcon={<Save />}
