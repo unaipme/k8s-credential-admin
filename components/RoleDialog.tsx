@@ -22,8 +22,7 @@ import {
     TextField
 } from "@mui/material";
 import { LoadingButton } from "@mui/lab";
-import { NextPage } from "next";
-import React, { useState } from "react";
+import React, { useState, FunctionComponent } from "react";
 import useSWR from "swr";
 import { ApiResource, ApiGroup, RuleVerb, Role } from "../services/kubernetes";
 import VerbChip from "./VerbChip";
@@ -36,7 +35,7 @@ type CreationDialogProps = {
     onSave: (role: Role) => void;
 }
 
-const RoleDialog: NextPage<CreationDialogProps> = ({ namespace, initialRole, open, onClose, onSave }) => {
+const RoleDialog: FunctionComponent<CreationDialogProps> = ({ namespace, initialRole, open, onClose, onSave }) => {
     const [ role, setRole ] = useState<Role>(initialRole || {
         metadata: {
             namespace: namespace!,

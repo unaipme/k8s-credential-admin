@@ -12,12 +12,9 @@ type Metadata = {
 }
 
 type ServiceAccount = {
-    apiVersion: string;
-    automountServiceAccountToken: boolean;
-    imagePullSecrets: {
-        name: string;
-    } [];
-    kind: string;
+    apiVersion?: string;
+    automountServiceAccountToken?: boolean;
+    kind?: string;
     secrets: any [];
     metadata: Metadata;
 }
@@ -169,6 +166,12 @@ const kubernetes = {
         return f(`apis/rbac.authorization.k8s.io/v1/namespaces/${roleBinding.metadata.namespace}/rolebindings`, {
             method: "POST",
             body: JSON.stringify(roleBinding)
+        });
+    },
+    createServiceAccount(serviceAccount: ServiceAccount): Observable<any> {
+        return f(`api/v1/namespaces/${serviceAccount.metadata.namespace}/serviceaccounts`, {
+            method: "POST",
+            body: JSON.stringify(serviceAccount)
         });
     },
     info: {
