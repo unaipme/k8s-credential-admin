@@ -26,6 +26,7 @@ type ServiceAccountInfoProps = {
     name: string;
     namespace: string;
     roles: { roleBinding: RoleBinding, role: Role } [];
+    clusterroles: { roleBinding: RoleBinding, role: Role } [];
 }
 
 type RoleBindingRowProps = {
@@ -56,30 +57,48 @@ const groupRoleRules = (rules: RoleRule []): GroupedRules => {
 const RoleBindingRow: React.FunctionComponent<{ roleBinding: RoleBinding, role: Role }> = ({ roleBinding, role }) => {
     return (
         <>
-            <TableRow>
+            <TableRow sx={{ "&>.MuiTableCell-root": { minWidth: "10%" }}}>
                 <TableCell rowSpan={role.rules.length}>{roleBinding.metadata.name}</TableCell>
                 <TableCell rowSpan={role.rules.length}>{role.metadata.name}</TableCell>
                 <TableCell>
                     <code>{role.rules[0]?.resources[0]}</code>
                 </TableCell>
                 <TableCell>
+                    <code>{!!role.rules[0]?.nonResourceURLs && role.rules[0]?.nonResourceURLs[0]}</code>
+                </TableCell>
+                <TableCell style={{ maxWidth: "20%" }}>
                     <Stack direction="row" spacing={1}>
-                        {(role.rules[0]?.verbs || []).map(verb => (
-                            <VerbChip key={verb} verb={verb} />
-                        ))}
+                        {role.rules[0]?.verbs?.includes("*") ?
+                            Object.keys(kubernetes.info.rbac.verbs).map(verb => (
+                                <VerbChip key={verb} verb={verb as RuleVerb} />
+                            ))
+                        :
+                            (role.rules[0]?.verbs || []).map(verb => (
+                                <VerbChip key={verb} verb={verb} />
+                            ))
+                        }
                     </Stack>
                 </TableCell>
             </TableRow>
             {role.rules.slice(1).map((rule, index) => (
                 <TableRow key={index}>
                     <TableCell>
-                        <code>{rule.resources[0]}</code>
+                        <code>{(rule.resources || [])[0]}</code>
+                    </TableCell>
+                    <TableCell>
+                        <code>{(rule.nonResourceURLs || [])[0]}</code>
                     </TableCell>
                     <TableCell>
                         <Stack direction="row" spacing={1}>
-                            {(rule.verbs || []).map(verb => (
-                                <VerbChip key={verb} verb={verb} />
-                            ))}
+                            {rule.verbs?.includes("*") ?
+                                Object.keys(kubernetes.info.rbac.verbs).map(verb => (
+                                    <VerbChip key={verb} verb={verb as RuleVerb} />
+                                ))
+                            :
+                                (rule.verbs || []).map(verb => (
+                                    <VerbChip key={verb} verb={verb} />
+                                ))
+                            }
                         </Stack>
                     </TableCell>
                 </TableRow>
@@ -88,7 +107,7 @@ const RoleBindingRow: React.FunctionComponent<{ roleBinding: RoleBinding, role: 
     );
 }
 
-const ServiceAccountInfo: NextPage<ServiceAccountInfoProps> = ({ name, namespace, roles }) => {
+const ServiceAccountInfo: NextPage<ServiceAccountInfoProps> = ({ name, namespace, roles, clusterroles }) => {
     return (
         <div style={{ width: "50%" }}>
             <Head>
@@ -97,7 +116,7 @@ const ServiceAccountInfo: NextPage<ServiceAccountInfoProps> = ({ name, namespace
             <Typography variant="h6">
                 Service account <code>{name}</code>{}
             </Typography>
-            {roles.length === 0 ?
+            {roles.length === 0 && clusterroles.length === 0 ?
             <Alert severity="info">
                 No role bindings for service account {name}
             </Alert>
@@ -109,11 +128,21 @@ const ServiceAccountInfo: NextPage<ServiceAccountInfoProps> = ({ name, namespace
                             <TableCell>Role binding</TableCell>
                             <TableCell>Role</TableCell>
                             <TableCell>Resource type</TableCell>
+                            <TableCell>Non resource URLs</TableCell>
                             <TableCell>Verbs</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
+                        <TableRow>
+                            <TableCell colSpan={5}>Roles</TableCell>
+                        </TableRow>
                         {roles.map((row, index) => (
+                            <RoleBindingRow key={index} {...row} />
+                        ))}
+                        <TableRow>
+                            <TableCell colSpan={5}>Cluster Roles</TableCell>
+                        </TableRow>
+                        {clusterroles.map((row, index) => (
                             <RoleBindingRow key={index} {...row} />
                         ))}
                     </TableBody>
@@ -141,10 +170,13 @@ const ServiceAccountInfo: NextPage<ServiceAccountInfoProps> = ({ name, namespace
 const getServerSideProps = async (context: NextPageContext) => {
     const name: string = context.query.name! as string;
     const namespace: string = context.query.namespace! as string;
+    console.log("Getting service account roles for role", name, "in namespace", namespace, context.query);
     const roles = await firstValueFrom(kubernetes.getServiceAccountRoles(name, namespace));
+    const clusterroles = await firstValueFrom(kubernetes.getServiceAccountClusterRoles(name));
+    console.log("Got roles", roles, "clusterroles", clusterroles);
     return {
         props: {
-            namespace, name, roles
+            namespace, name, roles, clusterroles
         }
     }
 }

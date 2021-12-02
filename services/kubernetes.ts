@@ -1,6 +1,6 @@
 import https from "https";
-import { Observable, from } from "rxjs";
-import { filter, map, mergeAll, mergeMap, toArray } from "rxjs/operators";
+import { Observable, from, concat, zip } from "rxjs";
+import { filter, map, mergeAll, mergeMap, tap, toArray } from "rxjs/operators";
 
 const token = process.env.TOKEN;
 const api = `https://${process.env.KUBERNETES_SERVICE_HOST}:${process.env.KUBERNETES_SERVICE_PORT}`;
@@ -34,11 +34,12 @@ type RoleBinding = {
     } [];
 }
 
-type RuleVerb = "list" | "get" | "watch" | "create" | "delete";
+type RuleVerb = "create" | "get" | "list" | "watch" | "update" | "patch" | "delete" | "deletecollection" | "*";
 
 type RoleRule = {
     apiGroups: string [];
     resources: string [];
+    nonResourceURLs: string [];
     verbs: RuleVerb [];
 };
 
@@ -88,7 +89,9 @@ const f = <T,>(url: string, options?: RequestInit): Observable<T> => {
         };
         // console.log("Fetching", url, fullOptions);
         fetch(`${api}/${url}`, fullOptions).then(response => {
-            response.json().then(data => resolve(data)).catch(err => reject(err))
+            response.json()
+                    .then(data => resolve(data))
+                    .catch(err => reject(err))
         }).catch(err => reject(err));
     }));
 }
@@ -112,6 +115,14 @@ const kubernetes = {
             ))
         );
     },
+    getServiceAccountClusterRoleBindings(serviceAccount: string): Observable<RoleBinding []> {
+        return f<RoleBinding []>(`apis/rbac.authorization.k8s.io/v1/clusterrolebindings`).pipe(
+            map((response: any) => response.items as RoleBinding []),
+            map(items => items.filter(crb =>
+                !!crb.subjects && crb.subjects.some(sub => sub.kind === "ServiceAccount" && sub.name === serviceAccount)
+            ))
+        );
+    },
     getServiceAccountRoles(serviceAccount: string, namespace: string): Observable<{ roleBinding: RoleBinding, role: Role } []> {
         return this.getServiceAccountRoleBindings(serviceAccount, namespace).pipe(
             mergeAll(),
@@ -120,12 +131,28 @@ const kubernetes = {
                 filter((role: Role) => roleBinding.roleRef.name === role.metadata.name),
                 map((role: Role) => ({ roleBinding, role }))
             )),
-            toArray()
+            toArray(),
+        );
+    },
+    getServiceAccountClusterRoles(serviceAccount: string): Observable<{ roleBinding: RoleBinding, role: Role } []> {
+        return this.getServiceAccountClusterRoleBindings(serviceAccount).pipe(
+            mergeAll(),
+            mergeMap((roleBinding: RoleBinding) => this.getClusterRoles().pipe(
+                mergeAll(),
+                filter((role: Role) => roleBinding.roleRef.name === role.metadata.name),
+                map((role: Role) => ({ roleBinding, role }))
+            )),
+            toArray(),
         );
     },
     getNamespaceRoles(namespace: string): Observable<Role []> {
         return f(`apis/rbac.authorization.k8s.io/v1/namespaces/${namespace}/roles`).pipe(
             map((response: any) => response.items as Role [])
+        );
+    },
+    getClusterRoles(): Observable<Role []> {
+        return f(`apis/rbac.authorization.k8s.io/v1/clusterroles`).pipe(
+            map((response: any) => response.items)
         );
     },
     getApis(): Observable<ApiGroup []> {
