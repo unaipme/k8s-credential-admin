@@ -26,3 +26,9 @@ html, body, div#__next {
   padding-bottom: 5px;
   justify-content: flex-end;
 }
+
+.title-row {
+  font-weight: bold;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}

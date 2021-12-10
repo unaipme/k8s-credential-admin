@@ -9,11 +9,9 @@ function MyApp({ Component, pageProps }: AppProps) {
 
   useEffect(() => {
     const handleStart = () => {
-      console.log("START");
       nProgress.start();
     }
     const handleStop = () => {
-      console.log("STOP");
       nProgress.done();
     }
     router.events.on("routeChangeStart", handleStart);

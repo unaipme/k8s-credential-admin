@@ -87,12 +87,23 @@ const f = <T,>(url: string, options?: RequestInit): Observable<T> => {
                 "Authorization": `Bearer ${token}`
             }
         };
-        // console.log("Fetching", url, fullOptions);
         fetch(`${api}/${url}`, fullOptions).then(response => {
             response.json()
-                    .then(data => resolve(data))
-                    .catch(err => reject(err))
-        }).catch(err => reject(err));
+                    .then(data => {
+                        if (!!data && (!data.code || (data.code >= 200 && data.code <= 399))) {
+                            resolve(data);
+                        } else {
+                            console.error("Rejecting response even though it was correctly retrieved from", url, data);
+                            reject(data);
+                        }
+                    }).catch(err => {
+                        console.error("Caught error when obtaining JSON body from", url, err);
+                        reject(err);
+                    })
+        }).catch(err => {
+            console.error("Caught error when fetching from", url, err);
+            reject(err);
+        });
     }));
 }
 

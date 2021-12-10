@@ -209,7 +209,6 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
     }
 
     const editRole = (role: Role) => {
-        console.log("EDITING", role);
         setEditedRole(role);
     }
 

@@ -26,6 +26,7 @@ import React, { FunctionComponent, useState } from "react";
 import kubernetes, { ServiceAccount } from "../../services/kubernetes";
 import { firstValueFrom } from "rxjs";
 import { LoadingButton } from "@mui/lab";
+import ErrorablePage, { ErroredProps } from "../../components/ErrorPage";
 
 
 const unique = <T,>(elements: T []): T [] => {
@@ -34,6 +35,7 @@ const unique = <T,>(elements: T []): T [] => {
   
 type ServiceAccountPageProps = {
     existingServiceAccounts: ServiceAccount [];
+    error?: any;
 }
 
 type ServiceAccountCreationDialogProps = {
@@ -132,7 +134,7 @@ const ServiceAccountCreationDialog: FunctionComponent<ServiceAccountCreationDial
     )
 }
 
-const ServiceAccountPage: NextPage<ServiceAccountPageProps> = ({ existingServiceAccounts }) => {
+const ServiceAccountPageComponent: FunctionComponent<ServiceAccountPageProps> = ({ existingServiceAccounts }) => {
     const [ serviceAccounts, setServiceAccounts ] = useState<ServiceAccount []>(existingServiceAccounts)
     const [ dialogOpen, setDialogOpen ] = useState<boolean>(false);
     const namespaces = unique((serviceAccounts || []).map(sa => sa.metadata.namespace));
@@ -189,11 +191,25 @@ const ServiceAccountPage: NextPage<ServiceAccountPageProps> = ({ existingService
     );
 }
 
+const ServiceAccountPage: NextPage<ErroredProps<ServiceAccountPageProps>> = (props) => {
+    return (
+        <ErrorablePage {...props} >
+            <ServiceAccountPageComponent />
+        </ErrorablePage>
+    );
+}
+
 const getServerSideProps = async () => {
-  const existingServiceAccounts = await firstValueFrom(kubernetes.getAllServiceAccounts());
-  return {
-    props: { existingServiceAccounts }
-  }
+    try {
+        const existingServiceAccounts = await firstValueFrom(kubernetes.getAllServiceAccounts());
+        return {
+            props: { existingServiceAccounts }
+        }
+    } catch (e) {
+        return {
+            props: { error: { ...e } }
+        }
+    }
 }
 
 export { getServerSideProps };

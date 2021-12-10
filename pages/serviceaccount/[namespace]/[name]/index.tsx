@@ -1,4 +1,4 @@
-import React, { Fragment, useState } from "react";
+import React, { Fragment, FunctionComponent, useState } from "react";
 import { NextPage, NextPageContext } from "next";
 import Head from 'next/head';
 import Link from "next/link";
@@ -21,6 +21,7 @@ import {
 import{ Add, ArrowBack, KeyboardArrowDown, KeyboardArrowUp } from "@mui/icons-material";
 import useSWR from "swr";
 import VerbChip from "../../../../components/VerbChip";
+import ErrorablePage, { ErroredProps } from "../../../../components/ErrorPage";
 
 type ServiceAccountInfoProps = {
     name: string;
@@ -107,7 +108,7 @@ const RoleBindingRow: React.FunctionComponent<{ roleBinding: RoleBinding, role: 
     );
 }
 
-const ServiceAccountInfo: NextPage<ServiceAccountInfoProps> = ({ name, namespace, roles, clusterroles }) => {
+const ServiceAccountInfoComponent: FunctionComponent<ServiceAccountInfoProps> = ({ name, namespace, roles, clusterroles }) => {
     return (
         <div style={{ width: "50%" }}>
             <Head>
@@ -133,18 +134,26 @@ const ServiceAccountInfo: NextPage<ServiceAccountInfoProps> = ({ name, namespace
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        <TableRow>
-                            <TableCell colSpan={5}>Roles</TableCell>
-                        </TableRow>
-                        {roles.map((row, index) => (
-                            <RoleBindingRow key={index} {...row} />
-                        ))}
-                        <TableRow>
-                            <TableCell colSpan={5}>Cluster Roles</TableCell>
-                        </TableRow>
-                        {clusterroles.map((row, index) => (
-                            <RoleBindingRow key={index} {...row} />
-                        ))}
+                        {roles.length > 0 &&
+                            <>
+                                <TableRow>
+                                    <TableCell className="title-row" colSpan={5}>Roles</TableCell>
+                                </TableRow>
+                                {roles.map((row, index) => (
+                                    <RoleBindingRow key={index} {...row} />
+                                ))}
+                            </>
+                        }
+                        {clusterroles.length > 0 &&
+                            <>
+                                <TableRow>
+                                    <TableCell className="title-row" colSpan={5}>Cluster Roles</TableCell>
+                                </TableRow>
+                                {clusterroles.map((row, index) => (
+                                    <RoleBindingRow key={index} {...row} />
+                                ))}
+                            </>
+                        }
                     </TableBody>
                 </Table>
             </TableContainer>
@@ -167,13 +176,19 @@ const ServiceAccountInfo: NextPage<ServiceAccountInfoProps> = ({ name, namespace
     )
 }
 
+const ServiceAccountInfo: NextPage<ErroredProps<ServiceAccountInfoProps>> = (props) => {
+    return (
+        <ErrorablePage {...props} >
+            <ServiceAccountInfoComponent />
+        </ErrorablePage>
+    );
+}
+
 const getServerSideProps = async (context: NextPageContext) => {
     const name: string = context.query.name! as string;
     const namespace: string = context.query.namespace! as string;
-    console.log("Getting service account roles for role", name, "in namespace", namespace, context.query);
     const roles = await firstValueFrom(kubernetes.getServiceAccountRoles(name, namespace));
     const clusterroles = await firstValueFrom(kubernetes.getServiceAccountClusterRoles(name));
-    console.log("Got roles", roles, "clusterroles", clusterroles);
     return {
         props: {
             namespace, name, roles, clusterroles
