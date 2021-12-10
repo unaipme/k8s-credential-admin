@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { firstValueFrom } from "rxjs";
 import kubernetes, { ServiceAccount } from "../../../services/kubernetes";
 
 export default async function handler(
@@ -9,10 +10,10 @@ export default async function handler(
     if (method === "POST") {
         try {
             const serviceAccount: ServiceAccount = JSON.parse(req.body);
-            await kubernetes.createServiceAccount(serviceAccount);
+            await firstValueFrom(kubernetes.createServiceAccount(serviceAccount));
             res.status(200);
-        } catch (e) {
-            res.status(500).json({ error: e });
+        } catch (error: any) {
+            res.status(error?.code || 500).json({ error });
         }
     } else {
         res.status(405);

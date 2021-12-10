@@ -5,7 +5,6 @@ import {
     Dialog,
     DialogTitle,
     DialogContent,
-    Grid,
     List,
     ListItem,
     ListItemButton,
@@ -17,11 +16,14 @@ import {
     TextField,
     Select,
     FormControl,
-    InputLabel
+    InputLabel,
+    Snackbar,
+    Alert,
+    IconButton
 } from "@mui/material";
 import Link from "next/link";
 import { NextPage } from "next";
-import { Add, ArrowForwardIos, Cancel, Save } from "@mui/icons-material";
+import { Add, ArrowForwardIos, Cancel, Save, Close } from "@mui/icons-material";
 import React, { FunctionComponent, useState } from "react";
 import kubernetes, { ServiceAccount } from "../../services/kubernetes";
 import { firstValueFrom } from "rxjs";
@@ -42,18 +44,20 @@ type ServiceAccountCreationDialogProps = {
     open: boolean;
     onClose: () => void;
     onCreate: (serviceAccount: ServiceAccount) => void;
+    onFail: (err: any) => void;
     namespaces: string [];
 }
 
-const ServiceAccountCreationDialog: FunctionComponent<ServiceAccountCreationDialogProps> = ({ open, onClose, onCreate, namespaces }) => {
-    const [ loading, setLoading ] = useState<boolean>(false);
-    const [ serviceAccount, setServiceAccount ] = useState<ServiceAccount>({
+const ServiceAccountCreationDialog: FunctionComponent<ServiceAccountCreationDialogProps> = ({ open, onClose, onCreate, onFail, namespaces }) => {
+    const initialServiceAccount = {
         metadata: {
             name: "",
             namespace: ""
         },
         secrets: []
-    });
+    };
+    const [ loading, setLoading ] = useState<boolean>(false);
+    const [ serviceAccount, setServiceAccount ] = useState<ServiceAccount>({ ...initialServiceAccount });
 
     const updateName = (name: string) => {
         setServiceAccount({
@@ -80,12 +84,24 @@ const ServiceAccountCreationDialog: FunctionComponent<ServiceAccountCreationDial
         fetch("/api/kubernetes/serviceaccounts", {
             method: "POST",
             body: JSON.stringify(serviceAccount)
-        }).then(() => {
-            onCreate(serviceAccount);
-            onClose();
+        }).then((response) => {
+            response.json().then(body => { 
+                if (body?.error?.code !== 201) {
+                    onFail(body.error.message);
+                } else {
+                    onCreate(serviceAccount);
+                    setServiceAccount({ ...initialServiceAccount });
+                    onClose();
+                }
+            }).catch(err => {
+                onFail(`${err}`);
+            });
         }).catch((err) => {
-            console.log("error", err);
-        }).finally(() => setLoading(false));
+            console.error("Service account creation", err);
+            onFail(err);
+        }).finally(() => {
+            setLoading(false);
+        });
     }
 
     return (
@@ -127,7 +143,12 @@ const ServiceAccountCreationDialog: FunctionComponent<ServiceAccountCreationDial
                             disabled={serviceAccount.metadata.name === "" || serviceAccount.metadata.namespace === ""}>
                                 Save
                             </LoadingButton>
-                    <Button startIcon={<Cancel />} color="error" onClick={onClose}>Close</Button>
+                    <Button startIcon={<Cancel />} color="error" onClick={() => {
+                        setServiceAccount({ ...initialServiceAccount });
+                        onClose();
+                    }}>
+                        Close
+                    </Button>
                 </ButtonGroup>
             </Box>
         </Dialog>
@@ -137,13 +158,24 @@ const ServiceAccountCreationDialog: FunctionComponent<ServiceAccountCreationDial
 const ServiceAccountPageComponent: FunctionComponent<ServiceAccountPageProps> = ({ existingServiceAccounts }) => {
     const [ serviceAccounts, setServiceAccounts ] = useState<ServiceAccount []>(existingServiceAccounts)
     const [ dialogOpen, setDialogOpen ] = useState<boolean>(false);
-    const namespaces = unique((serviceAccounts || []).map(sa => sa.metadata.namespace));
+    const [ errorSnackbar, setErrorSnackbar ] = useState<string | undefined>(undefined);
+    const [ successfulSnackbar, setSuccessfulSnackbar ] = useState<boolean>(false);
+    const namespaces = unique((serviceAccounts || []).map(sa => sa.metadata.namespace)).sort();
 
     const onServiceAccountCreate = (serviceAccount: ServiceAccount) => {
         setServiceAccounts([
             ...serviceAccounts,
             serviceAccount
-        ])
+        ].sort((sa1, sa2) => {
+            if (sa1.metadata.name > sa2.metadata.name) {
+                return 1;
+            } else if (sa1.metadata.name < sa2.metadata.name) {
+                return -1;
+            } else {
+                return 0;
+            }
+        }));
+        setSuccessfulSnackbar(true);
     }
 
     return (
@@ -151,7 +183,8 @@ const ServiceAccountPageComponent: FunctionComponent<ServiceAccountPageProps> = 
             <ServiceAccountCreationDialog open={dialogOpen}
                                           namespaces={namespaces}
                                           onClose={() => setDialogOpen(false)}
-                                          onCreate={onServiceAccountCreate} />
+                                          onCreate={onServiceAccountCreate}
+                                          onFail={(err) => setErrorSnackbar(`${err}`)} />
             <div style={{ display: "flex", justifyContent: "flex-end", width: "100%" }}>
                 <Button startIcon={<Add />} onClick={() => setDialogOpen(true)}>New service account</Button>
             </div>
@@ -187,6 +220,43 @@ const ServiceAccountPageComponent: FunctionComponent<ServiceAccountPageProps> = 
                     </List>
                 </Paper>
             </div>
+            <Snackbar open={!!errorSnackbar}
+                      autoHideDuration={6000}
+                      onClose={() => setErrorSnackbar(undefined)} >
+                <Alert severity="error" 
+                       elevation={6}
+                       variant="filled"
+                       action={
+                            <IconButton size="small"
+                                        aria-label="close"
+                                        color="inherit"
+                                        onClick={() => setErrorSnackbar(undefined)} >
+                                <Close fontSize="small" />
+                            </IconButton>
+                        }>
+                    An error happened when creating the service account:
+                    <p style={{ paddingLeft: "5px" }}>
+                        <code>{errorSnackbar}</code>
+                    </p>
+                </Alert>
+            </Snackbar>
+            <Snackbar open={successfulSnackbar}
+                      autoHideDuration={6000}
+                      onClose={() => setSuccessfulSnackbar(false)} >
+                <Alert severity="success" 
+                       elevation={6}
+                       variant="filled"
+                       action={
+                            <IconButton size="small"
+                                        aria-label="close"
+                                        color="inherit"
+                                        onClick={() => setSuccessfulSnackbar(false)} >
+                                <Close fontSize="small" />
+                            </IconButton>
+                        }>
+                    Service account created successfully
+                </Alert>
+            </Snackbar>
         </div>
     );
 }
