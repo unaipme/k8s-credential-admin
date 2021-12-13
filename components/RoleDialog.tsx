@@ -8,6 +8,7 @@ import {
     DialogContentText,
     DialogTitle,
     IconButton,
+    ListSubheader,
     MenuItem,
     Paper,
     Select,
@@ -22,7 +23,7 @@ import {
     TextField
 } from "@mui/material";
 import { LoadingButton } from "@mui/lab";
-import React, { useState, FunctionComponent } from "react";
+import React, { useState, Fragment, FunctionComponent } from "react";
 import useSWR from "swr";
 import { ApiResource, ApiGroup, RuleVerb, Role } from "../services/kubernetes";
 import VerbChip from "./VerbChip";
@@ -52,7 +53,14 @@ const RoleDialog: FunctionComponent<CreationDialogProps> = ({ namespace, initial
 
     // @ts-ignore
     const fetcher = (...args: any []) => fetch(...args).then(res => res.json());
-    const data: {api: ApiGroup, resources: ApiResource []} [] = useSWR("/api/kubernetes/api-resources", fetcher).data;
+    const data: {api: ApiGroup, resources: ApiResource []} [] = useSWR("/api/kubernetes/api-resources", fetcher).data.sort((a, b) => {
+        if (a.api.name < b.api.name) {
+            return -1;
+        } else if (a.api.name > b.api.name) {
+            return 1;
+        }
+        return 0;
+    });
 
     const onResourceTypeChange = ($event: SelectChangeEvent) => {
         const group = data.find(group => group.resources.findIndex(({name}) => name === $event.target.value) !== -1)!;
@@ -70,6 +78,7 @@ const RoleDialog: FunctionComponent<CreationDialogProps> = ({ namespace, initial
                 {
                     apiGroups: [ (selectedApi as ApiGroup).name ],
                     resources: [ (selectedResourceType as ApiResource).name ],
+                    nonResourceURLs: [],
                     verbs: selectedVerbs
                 }
             ]
@@ -109,18 +118,6 @@ const RoleDialog: FunctionComponent<CreationDialogProps> = ({ namespace, initial
             onClose();
         }).catch(err => console.log("ERROR", err))
         .finally(() => setLoading(false));
-    }
-
-    const resourceSort = (firstEl: ApiResource, secondEl: ApiResource) => {
-        const firstName = firstEl.kind,
-              secondName = secondEl.kind;
-        if (firstName < secondName) {
-            return -1;
-        }
-        if (firstName > secondName) {
-            return 1;
-        }
-        return 0;
     }
 
     const setRoleName = (name: string) => {
@@ -188,10 +185,15 @@ const RoleDialog: FunctionComponent<CreationDialogProps> = ({ namespace, initial
                                 <TableRow>
                                     <TableCell>
                                         <Select style={{ width: "100%" }} onChange={onResourceTypeChange} value={(selectedResourceType as ApiResource).name || ""}>
-                                            {data.flatMap(({ resources }) => resources)
-                                                 .sort(resourceSort)
-                                                 .map((resource, index) => (
-                                                <MenuItem key={index} value={resource.name}>{resource.kind} ({resource.name})</MenuItem>
+                                            {data.map(({ api, resources }, index) => (
+                                                <Fragment key={index}>
+                                                    <ListSubheader>{api.name}</ListSubheader>
+                                                    {resources.map((resource, resourceIndex) => (
+                                                        <MenuItem key={resourceIndex} value={resource.name}>
+                                                            {resource.kind} (<code>{resource.name}</code>)
+                                                        </MenuItem>
+                                                    ))}
+                                                </Fragment>
                                             ))}
                                         </Select>
                                     </TableCell>

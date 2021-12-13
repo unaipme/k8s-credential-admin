@@ -10,6 +10,11 @@ import {
     ButtonGroup,
     Checkbox,
     Collapse,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogContentText,
+    DialogTitle,
     Divider,
     IconButton,
     Paper,
@@ -60,6 +65,36 @@ type ExistingRoleRowProps = {
     onSelect: (role: Role) => void;
     onDelete: (role: Role) => void;
     onEdit: (role: Role) => void;
+}
+
+type RoleDeletionDialogProps = {
+    open: boolean;
+    role: Role;
+    onConfirm: (role: Role) => void;
+    onClose: () => void;
+}
+
+const RoleDeletionDialog: FunctionComponent<RoleDeletionDialogProps> = ({ open, role, onConfirm, onClose }) => {
+    const doConfirm = () => {
+        onConfirm(role);
+        onClose();
+    }
+    if (!!role) {
+        return (
+            <Dialog open={open}>
+                <DialogTitle>Delete role { role.metadata.name }?</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>Are you sure you want to delete role <code>{ role.metadata.name }</code>?</DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button color="primary" onClick={doConfirm}>Confirm</Button>
+                    <Button color="error" onClick={onClose}>Cancel</Button>
+                </DialogActions>
+            </Dialog>
+        )
+    } else {
+        return <></>;
+    }
 }
 
 const ExistingRoleRow: FunctionComponent<ExistingRoleRowProps> = ({ role, onSelect, onDelete, onEdit }) => {
@@ -156,6 +191,7 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
     const [ dialogOpen, setDialogOpen ] = useState<boolean>(false);
     const [ roles, setRoles ] = useState<Role []>(existingRoles);
     const [ editedRole, setEditedRole ] = useState<Role | undefined>();
+    const [ upForDeletionRole, setUpForDeletionRole ] = useState<Role | undefined>();
 
     const router = useRouter();
 
@@ -205,7 +241,11 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
                 ...roles.slice(0, index),
                 ...roles.slice(index + 1)
             ]);
-        }).catch((err) => console.log("DELETE ERROR", err));
+        }).catch((err) => {
+            console.log("DELETE ERROR", err)
+        }).finally(() => {
+            setUpForDeletionRole(undefined);
+        })
     }
 
     const editRole = (role: Role) => {
@@ -218,7 +258,9 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
             body: JSON.stringify(roleBinding)
         }).then(() => {
             router.push(`/serviceaccount/${namespace}/${name}`);
-        }).catch(err => console.log("ERROR!", err));
+        }).catch(err => {
+            console.log("ERROR!", err)
+        });
     }
 
     const setRoleBindingName = (name: string) => {
@@ -263,7 +305,11 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
                     <Typography sx={{ flex: "1 1 100%" }}>
                         Choose or create roles to bind to
                     </Typography>
-                    <Button variant="outlined" onClick={() => setDialogOpen(true)} startIcon={<Add />}>Create role</Button>
+                    <Button onClick={() => setDialogOpen(true)}
+                            startIcon={<Add />}
+                            style={{ whiteSpace: "nowrap" }} >
+                        Create role
+                    </Button>
                 </Toolbar>
                 {roles.length > 0 ?
                     <>
@@ -274,8 +320,8 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
                                         <TableCell />
                                         <TableCell />
                                         <TableCell>Role name</TableCell>
-                                        <TableCell></TableCell>
-                                        <TableCell></TableCell>
+                                        <TableCell />
+                                        <TableCell />
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
@@ -283,7 +329,7 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
                                     <ExistingRoleRow key={role.metadata.name}
                                                     role={role}
                                                     onSelect={onRoleSelect}
-                                                    onDelete={deleteRole}
+                                                    onDelete={role => setUpForDeletionRole(role)}
                                                     onEdit={editRole} />
                                 ))}
                                 </TableBody>
@@ -301,6 +347,10 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
                                 </Link>
                             </ButtonGroup>
                         </div>
+                        <RoleDeletionDialog role={upForDeletionRole!}
+                                            open={!!upForDeletionRole}
+                                            onClose={() => setUpForDeletionRole(undefined)}
+                                            onConfirm={() => deleteRole(upForDeletionRole!)} />
                     </>
                     :
                     <div>
