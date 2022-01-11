@@ -68,6 +68,11 @@ type ApiResource = {
     shortNames: string [];
 }
 
+type ApiGrouping = {
+    api: ApiGroup;
+    resources: ApiResource [];
+};
+
 type ApiResourceList = {
     resources: ApiResource [];
 }
@@ -172,7 +177,7 @@ const kubernetes = {
     getApiResourceTypes(api: ApiGroup): Observable<ApiResourceList> {
         return f(`apis/${api.preferredVersion.groupVersion}`);
     },
-    getAllApiResourceTypes(): Observable<{api: ApiGroup, resources: ApiResource []} []> {
+    getAllApiResourceTypes(): Observable<ApiGrouping []> {
         return this.getApis().pipe(
             map((response: any) => response.groups as ApiGroup []),
             mergeAll(),
@@ -180,6 +185,14 @@ const kubernetes = {
                 map(({ resources }) => ({ api, resources }))
             )),
             toArray(),
+            map((resources: ApiGrouping []) => resources.sort((a: ApiGrouping, b: ApiGrouping) => {
+                if (a.api.name < b.api.name) {
+                    return -1;
+                } else if (a.api.name > b.api.name) {
+                    return 1;
+                }
+                return 0;
+            }))
         )
     },
     createRole(role: Role): Observable<any> {
@@ -214,7 +227,7 @@ const kubernetes = {
     },
     info: {
         rbac: {
-            verbs: {
+            verbs: ({
                 create: "Permission to create a new instance of the selected resource",
                 get: "Permission to get information of one specific instance of a resource",
                 list: "Permission to retrieve a list of all instances of a specific resource",
@@ -223,7 +236,7 @@ const kubernetes = {
                 patch: "Permission to alter the configuration of an already existing instance of a specific resource",
                 delete: "Permission to delete instances of a specific resource",
                 deletecollection: "Permission to delete collections of instances of a specific resource"
-            }
+            } as { [verb in RuleVerb]: string })
 
         }
     }
@@ -234,6 +247,7 @@ export default kubernetes;
 export type {
     ApiResource,
     ApiGroup,
+    ApiGrouping,
     ApiGroupVersion,
     ServiceAccount,
     RoleBinding,

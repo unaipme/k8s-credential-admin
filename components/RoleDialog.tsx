@@ -24,11 +24,11 @@ import {
 } from "@mui/material";
 import { LoadingButton } from "@mui/lab";
 import React, { useState, Fragment, FunctionComponent } from "react";
-import useSWR from "swr";
-import { ApiResource, ApiGroup, RuleVerb, Role } from "../services/kubernetes";
+import { ApiResource, ApiGroup, ApiGrouping, RuleVerb, Role } from "../services/kubernetes";
 import VerbChip from "./VerbChip";
 
 type CreationDialogProps = {
+    apiResources: ApiGrouping [];
     namespace?: string;
     initialRole?: Role;
     open: boolean;
@@ -36,7 +36,7 @@ type CreationDialogProps = {
     onSave: (role: Role) => void;
 }
 
-const RoleDialog: FunctionComponent<CreationDialogProps> = ({ namespace, initialRole, open, onClose, onSave }) => {
+const RoleDialog: FunctionComponent<CreationDialogProps> = ({ apiResources, namespace, initialRole, open, onClose, onSave }) => {
     const [ role, setRole ] = useState<Role>(initialRole || {
         metadata: {
             namespace: namespace!,
@@ -51,19 +51,8 @@ const RoleDialog: FunctionComponent<CreationDialogProps> = ({ namespace, initial
     const [ allowedVerbs, setAllowedVerbs ] = useState<RuleVerb []>([]);
     const [ selectedVerbs, setSelectedVerbs ] = useState<RuleVerb []>([]);
 
-    // @ts-ignore
-    const fetcher = (...args: any []) => fetch(...args).then(res => res.json());
-    const data: {api: ApiGroup, resources: ApiResource []} [] = useSWR("/api/kubernetes/api-resources", fetcher).data.sort((a, b) => {
-        if (a.api.name < b.api.name) {
-            return -1;
-        } else if (a.api.name > b.api.name) {
-            return 1;
-        }
-        return 0;
-    });
-
     const onResourceTypeChange = ($event: SelectChangeEvent) => {
-        const group = data.find(group => group.resources.findIndex(({name}) => name === $event.target.value) !== -1)!;
+        const group = apiResources.find(group => group.resources.findIndex(({name}) => name === $event.target.value) !== -1)!;
         const resource = group.resources.find(resource => resource.name === $event.target.value)!;
         setSelectedResourceType(resource);
         setSelectedApi(group.api);
@@ -164,7 +153,6 @@ const RoleDialog: FunctionComponent<CreationDialogProps> = ({ namespace, initial
                 <DialogContentText>
                     Create a new role by filling the following form.
                 </DialogContentText>
-                {!!data &&
                 <Box component="form" sx={{ "& > :not(style)": { m: 1 }}} noValidate autoComplete="off">
                     <TextField label="Role name"
                                variant="outlined"
@@ -185,7 +173,7 @@ const RoleDialog: FunctionComponent<CreationDialogProps> = ({ namespace, initial
                                 <TableRow>
                                     <TableCell>
                                         <Select style={{ width: "100%" }} onChange={onResourceTypeChange} value={(selectedResourceType as ApiResource).name || ""}>
-                                            {data.map(({ api, resources }, index) => (
+                                            {apiResources.map(({ api, resources }, index) => (
                                                 <Fragment key={index}>
                                                     <ListSubheader>{api.name}</ListSubheader>
                                                     {resources.map((resource, resourceIndex) => (
@@ -199,7 +187,7 @@ const RoleDialog: FunctionComponent<CreationDialogProps> = ({ namespace, initial
                                     </TableCell>
                                     <TableCell>
                                         <Select style={{ width: "100%" }} disabled value={selectedApi !== "" ? selectedApi.preferredVersion.groupVersion : ""}>
-                                            {data.map(({ api }, index) => (
+                                            {apiResources.map(({ api }, index) => (
                                                 <MenuItem key={index} value={api.preferredVersion.groupVersion}>{api.name} ({api.preferredVersion.version})</MenuItem>
                                             ))}
                                         </Select>
@@ -261,7 +249,6 @@ const RoleDialog: FunctionComponent<CreationDialogProps> = ({ namespace, initial
                         <Button color="error" onClick={onClose} disabled={loading} startIcon={<Cancel />}>Close</Button>
                     </ButtonGroup>
                 </Box>
-                }
             </DialogContent>
         </Dialog>
     );

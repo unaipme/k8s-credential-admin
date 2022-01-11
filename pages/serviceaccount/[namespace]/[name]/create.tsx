@@ -3,7 +3,7 @@ import { NextPage, NextPageContext } from "next";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { firstValueFrom } from "rxjs";
-import kubernetes, { Role, RoleBinding, RoleRule, RuleVerb } from "../../../../services/kubernetes";
+import kubernetes, { ApiGrouping, Role, RoleBinding, RoleRule, RuleVerb } from "../../../../services/kubernetes";
 import {
     Box,
     Button,
@@ -37,6 +37,7 @@ type CreateRoleBindingProps = {
     namespace: string;
     name: string;
     existingRoles: Role [];
+    resourceTypes: ApiGrouping [];
 }
 
 type GroupedRules = {
@@ -171,7 +172,7 @@ const ExistingRoleRow: FunctionComponent<ExistingRoleRowProps> = ({ role, onSele
     )
 }
 
-const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, existingRoles }) => {
+const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, existingRoles, resourceTypes }) => {
     const [ roleBinding, setRoleBinding ] = useState<RoleBinding>({
         metadata: {
             name: "",
@@ -276,10 +277,18 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
     return (
         <div style={{ width: "50%" }}>
             {!!dialogOpen ?
-            <RoleDialog open={true} onClose={() => setDialogOpen(false)} onSave={saveRole} namespace={namespace} />
+            <RoleDialog open={true}
+                        onClose={() => setDialogOpen(false)}
+                        onSave={saveRole}
+                        namespace={namespace}
+                        apiResources={resourceTypes} />
             :
             !!editedRole &&
-            <RoleDialog open={true} onClose={() => setEditedRole(undefined)} onSave={saveRole} initialRole={editedRole!} />
+            <RoleDialog open={true}
+                        onClose={() => setEditedRole(undefined)}
+                        onSave={saveRole}
+                        initialRole={editedRole!}
+                        apiResources={resourceTypes} />
             }
             <Box>
                 <div style={{ float: "right" }}>
@@ -365,8 +374,9 @@ const CreateRoleBinding: NextPage<CreateRoleBindingProps> = ({ namespace, name, 
 const getServerSideProps = async (context: NextPageContext) => {
     const { namespace, name } = context.query;
     const existingRoles = await firstValueFrom(kubernetes.getNamespaceRoles(namespace as string));
+    const resourceTypes = await firstValueFrom(kubernetes.getAllApiResourceTypes());
     return {
-        props: { namespace, name, existingRoles }
+        props: { namespace, name, existingRoles, resourceTypes }
     }
 }
 

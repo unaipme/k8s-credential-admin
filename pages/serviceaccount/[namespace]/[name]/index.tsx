@@ -18,10 +18,9 @@ import {
     TableRow,
     Typography
 } from "@mui/material";
-import{ Add, ArrowBack, KeyboardArrowDown, KeyboardArrowUp } from "@mui/icons-material";
-import useSWR from "swr";
+import{ Add, ArrowBack } from "@mui/icons-material";
 import VerbChip from "../../../../components/VerbChip";
-import ErrorablePage, { ErroredProps } from "../../../../components/ErrorPage";
+import ErrorPage, { ErroredProps } from "../../../../components/ErrorPage";
 
 type ServiceAccountInfoProps = {
     name: string;
@@ -30,29 +29,11 @@ type ServiceAccountInfoProps = {
     clusterroles: { roleBinding: RoleBinding, role: Role } [];
 }
 
-type RoleBindingRowProps = {
-    roleBinding: RoleBinding;
-}
-
 type GroupedRules = {
     [apiGroup: string]: {
         name: string;
         verbs: RuleVerb [];
     } [];
-}
-
-const groupRoleRules = (rules: RoleRule []): GroupedRules => {
-    const groups: GroupedRules = {};
-    for (let rule of rules) {
-        const verbs = rule.verbs;
-        const resources = rule.resources.map(name => ({
-            name, verbs
-        }));
-        for (let apiGroup of rule.apiGroups) {
-            groups[apiGroup] = [...groups[apiGroup] || [], ...resources];
-        }
-    }
-    return groups;
 }
 
 const RoleBindingRow: React.FunctionComponent<{ roleBinding: RoleBinding, role: Role }> = ({ roleBinding, role }) => {
@@ -176,12 +157,14 @@ const ServiceAccountInfoComponent: FunctionComponent<ServiceAccountInfoProps> = 
     )
 }
 
-const ServiceAccountInfo: NextPage<ErroredProps<ServiceAccountInfoProps>> = (props) => {
-    return (
-        <ErrorablePage {...props} >
-            <ServiceAccountInfoComponent />
-        </ErrorablePage>
-    );
+const ServiceAccountInfo: NextPage<ErroredProps<ServiceAccountInfoProps>> = ({error, ...props}) => {
+    if (error) {
+        return <ErrorPage error={error} />
+    } else {
+        return (
+            <ServiceAccountInfoComponent { ...(props as ServiceAccountInfoProps) }/>
+        );
+    }
 }
 
 const getServerSideProps = async (context: NextPageContext) => {

@@ -28,7 +28,7 @@ import React, { FunctionComponent, useState } from "react";
 import kubernetes, { ServiceAccount } from "../../services/kubernetes";
 import { firstValueFrom } from "rxjs";
 import { LoadingButton } from "@mui/lab";
-import ErrorablePage, { ErroredProps } from "../../components/ErrorPage";
+import ErrorPage, { ErroredProps } from "../../components/ErrorPage";
 
 
 const unique = <T,>(elements: T []): T [] => {
@@ -261,12 +261,16 @@ const ServiceAccountPageComponent: FunctionComponent<ServiceAccountPageProps> = 
     );
 }
 
-const ServiceAccountPage: NextPage<ErroredProps<ServiceAccountPageProps>> = (props) => {
-    return (
-        <ErrorablePage {...props} >
-            <ServiceAccountPageComponent />
-        </ErrorablePage>
-    );
+const ServiceAccountPage: NextPage<ErroredProps<ServiceAccountPageProps>> = ({ error, ...props }) => {
+    if (error) {
+        return (
+            <ErrorPage error={error} />
+        );
+    } else {
+        return (
+            <ServiceAccountPageComponent {...(props as ServiceAccountPageProps) }/>
+        );
+    }
 }
 
 const getServerSideProps = async () => {
@@ -275,7 +279,7 @@ const getServerSideProps = async () => {
         return {
             props: { existingServiceAccounts }
         }
-    } catch (e) {
+    } catch (e: any) {
         return {
             props: { error: { ...e } }
         }

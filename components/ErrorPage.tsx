@@ -8,12 +8,15 @@ const ErrorPage: FunctionComponent<{ error: any }> = ({ error }) => {
             <TableContainer component={Paper}>
                 <Table>
                     <TableBody>
-                        {Object.entries(error).map(([key, value], index) => (
-                            <TableRow key={key}>
-                                <TableCell style={{ fontWeight: "bold" }}>{key}</TableCell>
-                                <TableCell align="right">{typeof value === "object" ? JSON.stringify(value) : value}</TableCell>
-                            </TableRow>
-                        ))}
+                        {Object.entries(error).map(([key, val], index) => {
+                            const value: any = typeof val === "object" ? JSON.stringify(val) : val;
+                            return (
+                                <TableRow key={key}>
+                                    <TableCell style={{ fontWeight: "bold" }}>{key}</TableCell>
+                                    <TableCell align="right">{value}</TableCell>
+                                </TableRow>
+                            );
+                        })}
                     </TableBody>
                 </Table>
             </TableContainer>
@@ -25,21 +28,6 @@ type ErroredProps<T> = PropsWithChildren<T & {
     error: any
 }>;
 
-class ErrorablePage<T> extends Component<ErroredProps<T>> {
-    render() {
-        if (!!this.props.error) {
-            return <ErrorPage error={this.props.error} />
-        } else {
-            return Children.map(this.props.children, child => {
-                if (isValidElement(child)) {
-                    return cloneElement(child, { ...this.props });
-                }
-                return child;
-            });
-        }
-    }
-}
-
-export default ErrorablePage;
+export default ErrorPage;
 
 export type { ErroredProps };
